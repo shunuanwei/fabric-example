@@ -1,0 +1,64 @@
+﻿奶牛场: dairy
+加工厂: machining
+销售:   sale
+
+docker rmi -f $(docker images | grep "dev-" | awk '{print $ 3}')
+================= dairy ====================
+docker exec -it cli-dairy bash
+1. 创建通道
+CAFILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/trace.com/orderers/orderer.trace.com/msp/tlscacerts/tlsca.trace.com-cert.pem
+peer channel create -o orderer.trace.com:7050 -f channel-artifacts/channel.tx -c tracechannel --tls true --cafile $CAFILE
+
+2. 加入通道
+peer channel join -b tracechannel.block
+
+3. 安装链码
+peer chaincode install -n dairycc -l golang -v 1.0 -p github.com/chaincode/dairy
+
+4. 链码初始化
+peer chaincode instantiate -o orderer.trace.com:7050 --tls true --cafile $CAFILE -n dairycc -l golang -v 1.0 -C tracechannel -c '{"Args":["init"]}' -P "AND ('OrgDairyMSP.member')"
+
+5. 链码查询
+peer chaincode query -n dairycc -C tracechannel -c '{"Args":["query", "DF-001"]}'
+
+ROOTCERT=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/dairy.trace.com/peers/peer0.dairy.trace.com/tls/ca.crt
+peer chaincode invoke -o orderer.trace.com:7050 --tls true --cafile $CAFILE --peerAddresses peer0.dairy.trace.com:7051 --tlsRootCertFiles $ROOTCERT -n tracecc -C tracechannel -c '{"Args":["putvalue", "abc", "nihao,shijie"]}'
+
+================= machining ====================
+docker exec -it cli-machining bash
+
+1. 加入通道
+peer channel join -b channel-artifacts/tracechannel.block
+
+2. 安装链码
+peer chaincode install -n machincc -l golang -v 1.0 -p github.com/chaincode/machining
+
+3. 链码初始化
+CAFILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/trace.com/orderers/orderer.trace.com/msp/tlscacerts/tlsca.trace.com-cert.pem
+peer chaincode instantiate -o orderer.trace.com:7050 --tls true --cafile $CAFILE -n machincc -l golang -v 1.0 -C tracechannel -c '{"Args":["init"]}' -P "AND ('OrgMachiningMSP.member')"
+
+4. 链码查询
+peer chaincode query -n machincc -C tracechannel -c '{"Args":["query", "JGC-001"]}'
+
+ROOTCERT=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/dairy.trace.com/peers/peer0.dairy.trace.com/tls/ca.crt
+peer chaincode invoke -o orderer.trace.com:7050 --tls true --cafile $CAFILE --peerAddresses peer0.dairy.trace.com:7051 --tlsRootCertFiles $ROOTCERT -n machincc -C tracechannel -c '{"Args":["putvalue", "abc", "nihao,shijie"]}'
+
+================= sale ====================
+docker exec -it cli-sale bash
+
+1. 加入通道
+peer channel join -b channel-artifacts/tracechannel.block
+
+2. 安装链码
+peer chaincode install -n salecc -l golang -v 1.0 -p github.com/chaincode/sale
+
+3. 链码初始化
+CAFILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/trace.com/orderers/orderer.trace.com/msp/tlscacerts/tlsca.trace.com-cert.pem
+peer chaincode instantiate -o orderer.trace.com:7050 --tls true --cafile $CAFILE -n salecc -l golang -v 1.0 -C tracechannel -c '{"Args":["init"]}' -P "AND ('OrgSaleMSP.member')"
+
+4. 链码查询
+peer chaincode query -n salecc -C tracechannel -c '{"Args":["query", "XSS-001"]}'
+
+5. 链码调用
+ROOTCERT=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/sale.trace.com/peers/peer0.sale.trace.com/tls/ca.crt
+peer chaincode invoke -o orderer.trace.com:7050 --tls true --cafile $CAFILE --peerAddresses peer0.sale.trace.com:7051 --tlsRootCertFiles $ROOTCERT -n salecc -C tracechannel -c '{"Args":["trace", "XSS-010"]}'
